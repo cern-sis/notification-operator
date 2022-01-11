@@ -1,7 +1,6 @@
 import kopf
 import zulip
 
-
 client = zulip.Client()
 
 request = {
@@ -21,10 +20,14 @@ def event_notification_handler(event, **_):
     ):
         object_metadata = event["object"]["metadata"]
         request["topic"] = object_metadata["namespace"]
-        request["content"] = {
-            "resource_name": object_metadata["ownerReferences"][0]["name"],
-            "resource_kind": object_metadata["ownerReferences"][0]["kind"],
-            "resource_uid": object_metadata["ownerReferences"][0]["uid"],
-            "error": object_container_status["state"]["terminated"]["message"],
-        }
+        resource_kind = object_metadata["ownerReferences"][0]["kind"]
+        resource_name = object_metadata["ownerReferences"][0]["name"]
+        error_message = object_container_status["state"]["terminated"].get("message")
+        zulip_message_content = (
+            f":skull_and_crossbones: {resource_kind} **{resource_name}** failed with the following error:\n> {error_message}."
+            if error_message
+            else f":skull_and_crossbones: {resource_kind} **{resource_name}** failed."
+        )
+
+        request["content"] = zulip_message_content
         client.send_message(request)
