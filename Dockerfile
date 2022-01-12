@@ -15,4 +15,4 @@ COPY poetry.lock pyproject.toml ./
 COPY event_notification_handler.py ./
 
 RUN poetry install
-CMD poetry run kopf run /src/event_notification_handler.py --verbose
+CMD poetry run kopf run /src/event_notification_handler.py --log-format=json --verbose

@@ -1,3 +1,5 @@
+import logging
+
 import kopf
 import zulip
 
@@ -9,6 +11,11 @@ zulip_request_payload = {
     "type": "stream",
     "to": "INSPIRE",
 }
+
+
+@kopf.on.startup()
+def configure(settings: kopf.OperatorSettings, **_):
+    settings.posting.level = logging.ERROR
 
 
 @kopf.on.event("", "v1", "pods")
