@@ -4,12 +4,13 @@ import kopf
 import zulip
 
 ACCEPTED_NAMESPACES = ["inspire-prod", "inspire-qa"]
+ZULIP_CHANNEL_NAME = "inspire"
 
 client = zulip.Client()
 
 zulip_request_payload = {
     "type": "stream",
-    "to": "INSPIRE",
+    "to": ZULIP_CHANNEL_NAME,
 }
 
 
@@ -18,21 +19,14 @@ def configure(settings: kopf.OperatorSettings, **_):
     settings.posting.level = logging.ERROR
 
 
-@kopf.on.event("", "v1", "pods", field='kind', value='Job')
-@kopf.on.event("", "v1", "pods", field='status.phase', value='Failed')
-def event_notification_handler(event, **_):
-    object_container_status = event["object"]["status"].get("containerStatuses")
-    if not object_container_status:
-        return
-    object_metadata = event["object"]["metadata"]
-    zulip_request_payload["topic"] = object_metadata["namespace"]
-    resource_kind = object_metadata["ownerReferences"][0]["kind"]
-    resource_name = object_metadata["ownerReferences"][0]["name"]
-    error_message = object_container_status[0]["state"]["terminated"].get("message")
-    zulip_message_content = (
-        f":skull_and_crossbones: {resource_kind} **{resource_name}** failed with the following error:\n> {error_message}."
-        if error_message
-        else f":skull_and_crossbones: {resource_kind} **{resource_name}** failed."
-    )
+@kopf.on.field("batch", "v1", "jobs", field="status.conditions")
+def event_notification_handler(old, new, status, namespace, **kwargs):
+    data = kwargs["body"]
+    zulip_request_payload["topic"] = namespace
+    resource_kind = data["kind"]
+    resource_name = data["metadata"]["name"]
+    error_reason = status["conditions"][0]["reason"]
+    error_message = status["conditions"][0]["message"]
+    zulip_message_content = f":skull_and_crossbones: {resource_kind} **{resource_name}** failed with the following error:\n> {error_reason}: {error_message}."
     zulip_request_payload["content"] = zulip_message_content
     client.send_message(zulip_request_payload)
