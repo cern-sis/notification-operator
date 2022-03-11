@@ -27,7 +27,7 @@ def event_notification_handler(old, new, status, namespace, **kwargs):
         return
     data = kwargs["body"]
     zulip_request_payload["to"] = namespace.split("-")[0]
-    zulip_request_payload["topic"] = namespace.split("-")[1]
+    zulip_request_payload["topic"] = namespace
     resource_kind = data["kind"]
     resource_name = data["metadata"]["name"]
     error_reason = status["conditions"][0]["reason"]
