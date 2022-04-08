@@ -10,6 +10,7 @@ ACCEPTED_NAMESPACES = [
     "hepdata-prod",
     "scoap3-qa",
     "scoap3-prod",
+    "digitization-prod"
 ]
 client = zulip.Client()
 
