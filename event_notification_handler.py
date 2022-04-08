@@ -2,18 +2,10 @@ import logging
 
 import kopf
 import zulip
+import os
 
-ACCEPTED_NAMESPACES = [
-    "inspire-qa",
-    "inspire-prod",
-    "hepdata-qa",
-    "hepdata-prod",
-    "scoap3-qa",
-    "scoap3-prod",
-    "digitization-prod"
-]
+
 client = zulip.Client()
-
 zulip_request_payload = {"type": "stream"}
 
 
@@ -24,7 +16,7 @@ def configure(settings: kopf.OperatorSettings, **_):
 
 @kopf.on.field("batch", "v1", "jobs", field="status.conditions")
 def event_notification_handler(old, new, status, namespace, **kwargs):
-    if namespace not in ACCEPTED_NAMESPACES:
+    if namespace not in os.environ.get("ACCEPTED_NAMESPACES").split(','):
         return
     data = kwargs["body"]
     zulip_request_payload["to"] = namespace.split("-")[0]
