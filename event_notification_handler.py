@@ -34,6 +34,6 @@ kopf.on.startup()(notification_handler.prepare_message)
 kopf.on.field("batch", "v1", "jobs", field="status.conditions")(
     notification_handler.prepare_message
 )
-kopf.on.field("v1", "pod", field="status.conditions")(
+kopf.on.field("v1", "pod", field="status.phase", new="Failed")(
     notification_handler.prepare_message
 )
