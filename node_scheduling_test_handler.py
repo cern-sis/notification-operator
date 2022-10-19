@@ -63,10 +63,11 @@ def create_pod(client, namespace, name):
         }
     }
 
-    try client.create_namespaced_pod(
-        namespace=namespace,
-        body=manifest
-    ):
+    try:
+        client.create_namespaced_pod(
+            namespace=namespace,
+            body=manifest
+        )
         return True
     except Exception:
         return False
