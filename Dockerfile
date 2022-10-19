@@ -12,7 +12,8 @@ RUN curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poet
 
 
 COPY poetry.lock pyproject.toml ./
-COPY event_notification_handler.py ./
+COPY *.py ./
 
 RUN poetry install
-CMD poetry run kopf run /src/event_notification_handler.py --log-format=json --verbose
+CMD ["poetry", "run", "kopf", "run", "--log-format=json", "--verbose"]
+ARG ["/src/event_notification_handler.py"]
