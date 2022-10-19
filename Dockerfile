@@ -15,5 +15,5 @@ COPY poetry.lock pyproject.toml ./
 COPY *.py ./
 
 RUN poetry install
-CMD ["poetry", "run", "kopf", "run", "--log-format=json", "--verbose"]
-ARG ["/src/event_notification_handler.py"]
+ENTRYPOINT ["poetry", "run", "kopf", "run", "--log-format=json", "--verbose"]
+CMD ["/src/event_notification_handler.py"]
