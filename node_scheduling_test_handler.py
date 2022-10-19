@@ -27,19 +27,19 @@ def test_node_scheduling(name, **_):
     # the deletion probably failed and something is wrong
     # with the node
     if pod_exists(k8s, **selector):
-        return status_failed("podAlreadyExists")
+        return status_failure("podAlreadyExists")
 
     if not create_pod(k8s, **selector):
-        return status_failed("podCreationFailed")
+        return status_failure("podCreationFailed")
 
     sleep(POD_CREATION_TIMEOUT)
 
     if not pod_succeeded(k8s, **selector):
-        return status_failed("podDidntSucceed")
+        return status_failure("podDidntSucceed")
 
     # If the pod deletion fails, something is probably wrong.
     if not delete_pod(k8s, **selector):
-        return status_failed("podDeletionFailed")
+        return status_failure("podDeletionFailed")
 
     return status_success()
 
@@ -100,7 +100,7 @@ def iso_utc_now():
     datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()
 
 
-def status_failed(reason):
+def status_failure(reason):
     return {
         "status": "failed",
         "reason": reason,
