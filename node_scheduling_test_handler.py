@@ -98,12 +98,12 @@ def delete_pod(client, namespace, name):
         return False
 
 
-def pod_exists(client, **kwargs):
-    return get_pod_status(client, kwargs) != False
+def pod_exists(*args):
+    return get_pod_status(args) != False
 
 
-def pod_succeeded(client, **kwargs):
-    status = get_pod_status(client, kwargs)
+def pod_succeeded(*args):
+    status = get_pod_status(args)
     return status.phase == "Succeeded"
 
 
