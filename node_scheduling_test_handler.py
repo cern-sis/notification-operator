@@ -1,3 +1,4 @@
+import datetime
 import logging
 import kopf
 import kubernetes
@@ -19,26 +20,28 @@ def test_node_scheduling(name, **_):
 
     selector = {
         "namespace": "notification-operator",
-        "name": "node-scheduling-test-" ++ name
+        "name": "node-scheduling-test-" + name
     }
 
     # If the pod from the previous check is still around,
     # the deletion probably failed and something is wrong
     # with the node
     if pod_exists(k8s, **selector):
-        return {"status": "failed", "reason": "podAlreadyExists"}
-        
+        return status_failed("podAlreadyExists")
+
     if not create_pod(k8s, **selector):
-        return {"status": "failed", "reason": "podCreationFailed"}
+        return status_failed("podCreationFailed")
 
     sleep(POD_CREATION_TIMEOUT)
 
     if not pod_succeeded(k8s, **selector):
-        return {"status": "failed", "reason": "podDidntSucceed"}
+        return status_failed("podDidntSucceed")
 
     # If the pod deletion fails, something is probably wrong.
     if not delete_pod(k8s, **selector):
-        return {"status": "failed", "reason": "podDeletionFailed"}
+        return status_failed("podDeletionFailed")
+
+    return status_success()
 
 
 def create_pod(client, namespace, name):
@@ -91,3 +94,22 @@ def pod_exists(client, kwargs):
 def pod_succeeded(client, kwargs):
     status = get_pod_status(client, kwargs)
     return status.phase == "Succeeded"
+
+
+def iso_utc_now():
+    datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()
+
+
+def status_failed(reason):
+    return {
+        "status": "failed",
+        "reason": reason,
+        "last": iso_utc_now()
+    }
+
+
+def status_success():
+    return {
+        "status": "succeeded",
+        "last": iso_utc_now()
+    }
