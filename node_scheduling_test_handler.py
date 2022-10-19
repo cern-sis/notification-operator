@@ -9,6 +9,11 @@ POD_CREATION_TIMEOUT = float(os.environ.get("POD_CREATION_TIMEOUT", 5.0))
 POD_CREATION_INTERVAL = float(os.environ.get("POD_CREATION_INTERVAL", 30.0))
 
 
+@kopf.on.startup()
+def configure(settings: kopf.OperatorSettings, **_):
+    settings.posting.enabled = False
+
+
 @kopf.timer("node",
             interval=POD_CREATION_INTERVAL,
             sharp=True,
