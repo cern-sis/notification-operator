@@ -1,30 +1,47 @@
 import logging
-
 import kopf
 import kubernetes
 import os
-import zulip
 
 
+POD_CREATION_TIMEOUT = os.environ.get(POD_CREATION_TIMEOUT, 5.0)
+POD_CREATION_INTERVAL = os.environ.get(POD_CREATION_INTERVAL, 30.0)
 
 
-@kopf.on.startup()
-@kopf.timer("node", interval=30.0, sharp=True,
-            labels={"node-role.kubernetes.io/master": kopf.ABSENT})
+@kopf.timer("node",
+            interval=POD_CREATION_INTERVAL,
+            sharp=True,
+            labels={
+                "node-role.kubernetes.io/master": kopf.ABSENT
+            })
 def test_node_scheduling(name, **_):
-    phase = create_pod(node_name)
+    k8s = kubernetes.client.CoreV1Api()
 
-    if phase != "Succeeded":
-       send_zulip_notification(node_name) 
+    selector = {
+        "namespace": "notification-operator",
+        "name": "node-scheduling-test-" ++ name
+    }
+
+    if pod_exists(k8s, **selector):
+        return {"status": "failed", "reason": "podAlreadyExists"}
+        
+    if not create_pod(k8s, **selector):
+        return {"status": "failed", "reason": "podCreationFailed"}
+
+    sleep(POD_CREATION_TIMEOUT)
+
+    if not pod_succeeded(k8s, **selector):
+        return {"status": "failed", "reason": "podDidntSucceed"}
+
+    if not delete_pod(k8s, **selector):
+        return {"status": "failed", "reason": "podDeletionFailed"}
 
 
-def create_pod(node_name: str):
-    pod_name = "node-scheduling-test-" ++ node_name
-    pod_namespace = "notification-operator"
-    pod_manifest = {
+def create_pod(client, namespace, name):
+    manifest = {
         "apiVersion": "v1",
         "kind": "Pod",
-        "metadata": { "name": pod_name },
+        "metadata": { "name": name },
         "spec": {
             "restartPolicy": "Never",
             "containers": [{
@@ -39,27 +56,34 @@ def create_pod(node_name: str):
         }
     }
 
-    client = kubernetes.client.CoreV1Api()
-    resp = client.create_namespaced_pod(body=pod_manifest,
-                                        namespace=pod_namespace)
-
-    time.sleep(10)
-
-    resp = client.read_namespaced_pod(name=pod_name,
-                                      namespace=pod_namespace)
-
-    client.delete_namespaced_pod(name=pod_name,
-                                 namespace=pod_namespace)
-
-    return resp.status.phase
+    try client.create_namespaced_pod(
+        namespace=namespace,
+        body=manifest
+    ):
+        return True
+    except Exception:
+        return False
 
 
-def send_zulip_notification(node_name: str):
-    client = zulip.Client()
-    client.send_message(
-        {"type": "stream",
-         "to": "infrastructure",
-         "topic": "cluster",
-         "content": f":skull_and_crossbones: Node **{node_name}** appears to be unhealthy."
-        }
-    )
+def get_pod_status(client, kwargs):
+    try:
+        return client.read_namespaced_pod_status(kwargs)
+    except Exception:
+        return False
+
+
+def delete_pod(client, kwargs):
+    try:
+        client.delete_namespaced_pod(client, kwargs)
+        return True
+    except Exception:
+        return False
+
+
+def pod_exists(client, kwargs):
+    return get_pod_status(client, kwargs) != False
+
+
+def pod_succeeded(client, kwargs):
+    status = get_pod_status(client, kwargs)
+    return status.phase == "Succeeded"
