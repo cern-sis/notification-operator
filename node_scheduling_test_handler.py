@@ -18,39 +18,38 @@ POD_CREATION_INTERVAL = float(os.environ.get("POD_CREATION_INTERVAL", 30.0))
 def test_node_scheduling(name, **_):
     k8s = kubernetes.client.CoreV1Api()
 
-    selector = {
-        "namespace": "notification-operator",
-        "name": "node-scheduling-test-" + name
-    }
+    pod_namespace = "notification-operator"
+    pod_name = "node-scheduling-test-" + name
 
     # If the pod from the previous check is still around,
     # the deletion probably failed and something is wrong
     # with the node
-    if pod_exists(k8s, **selector):
+    if pod_exists(k8s, pod_namespace, pod_name):
         return status_failure("podAlreadyExists")
 
-    if not create_pod(k8s, **selector):
+    if not create_pod(k8s, name, pod_namespace, pod_name):
         return status_failure("podCreationFailed")
 
     sleep(POD_CREATION_TIMEOUT)
 
-    if not pod_succeeded(k8s, **selector):
+    if not pod_succeeded(k8s, pod_namespace, pod_name):
         return status_failure("podDidntSucceed")
 
     # If the pod deletion fails, something is probably wrong.
-    if not delete_pod(k8s, **selector):
+    if not delete_pod(k8s, pod_namespace, pod_name):
         return status_failure("podDeletionFailed")
 
     return status_success()
 
 
-def create_pod(client, namespace, name):
+def create_pod(client, node,  namespace, name):
     manifest = {
         "apiVersion": "v1",
         "kind": "Pod",
         "metadata": { "name": name },
         "spec": {
             "restartPolicy": "Never",
+            "nodeName": node,
             "containers": [{
                 "image": "busybox",
                 "name": "true",
@@ -73,26 +72,32 @@ def create_pod(client, namespace, name):
         return False
 
 
-def get_pod_status(client, kwargs):
+def get_pod_status(client, namespace, name):
     try:
-        return client.read_namespaced_pod_status(kwargs)
+        return client.read_namespaced_pod_status(
+            namespace=namespace,
+            name=name
+        )
     except Exception:
         return False
 
 
-def delete_pod(client, kwargs):
+def delete_pod(client, namespace, name):
     try:
-        client.delete_namespaced_pod(client, kwargs)
+        client.delete_namespaced_pod(
+            namespace=namespace,
+            name=name
+        )
         return True
     except Exception:
         return False
 
 
-def pod_exists(client, kwargs):
+def pod_exists(client, **kwargs):
     return get_pod_status(client, kwargs) != False
 
 
-def pod_succeeded(client, kwargs):
+def pod_succeeded(client, **kwargs):
     status = get_pod_status(client, kwargs)
     return status.phase == "Succeeded"
 
