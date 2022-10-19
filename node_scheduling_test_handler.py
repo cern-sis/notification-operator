@@ -22,6 +22,9 @@ def test_node_scheduling(name, **_):
         "name": "node-scheduling-test-" ++ name
     }
 
+    # If the pod from the previous check is still around,
+    # the deletion probably failed and something is wrong
+    # with the node
     if pod_exists(k8s, **selector):
         return {"status": "failed", "reason": "podAlreadyExists"}
         
@@ -33,6 +36,7 @@ def test_node_scheduling(name, **_):
     if not pod_succeeded(k8s, **selector):
         return {"status": "failed", "reason": "podDidntSucceed"}
 
+    # If the pod deletion fails, something is probably wrong.
     if not delete_pod(k8s, **selector):
         return {"status": "failed", "reason": "podDeletionFailed"}
 
