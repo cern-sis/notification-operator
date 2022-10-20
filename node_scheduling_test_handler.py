@@ -3,6 +3,7 @@ import logging
 import kopf
 import kubernetes
 import os
+import time
 
 
 POD_CREATION_TIMEOUT = float(os.environ.get("POD_CREATION_TIMEOUT", 5.0))
@@ -35,7 +36,7 @@ def test_node_scheduling(name, **_):
     if not create_pod(k8s, name, pod_namespace, pod_name):
         return status_failure("podCreationFailed")
 
-    sleep(POD_CREATION_TIMEOUT)
+    time.sleep(POD_CREATION_TIMEOUT)
 
     if not pod_succeeded(k8s, pod_namespace, pod_name):
         return status_failure("podDidntSucceed")
