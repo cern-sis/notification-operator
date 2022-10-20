@@ -21,7 +21,7 @@ def configure(settings: kopf.OperatorSettings, **_):
             labels={
                 "node-role.kubernetes.io/master": kopf.ABSENT
             })
-def test_node_scheduling(name, **_):
+def test_node_scheduling(logger, name, **_):
     k8s = kubernetes.client.CoreV1Api()
 
     pod_namespace = "notification-operator"
@@ -30,25 +30,25 @@ def test_node_scheduling(name, **_):
     # If the pod from the previous check is still around,
     # the deletion probably failed and something is wrong
     # with the node
-    if pod_exists(k8s, pod_namespace, pod_name):
+    if pod_exists(logger, k8s, pod_namespace, pod_name):
         return status_failure("podAlreadyExists")
 
-    if not create_pod(k8s, name, pod_namespace, pod_name):
+    if not create_pod(logger, k8s, name, pod_namespace, pod_name):
         return status_failure("podCreationFailed")
 
     time.sleep(POD_CREATION_TIMEOUT)
 
-    if not pod_succeeded(k8s, pod_namespace, pod_name):
+    if not pod_succeeded(logger, k8s, pod_namespace, pod_name):
         return status_failure("podDidntSucceed")
 
     # If the pod deletion fails, something is probably wrong.
-    if not delete_pod(k8s, pod_namespace, pod_name):
+    if not delete_pod(logger, k8s, pod_namespace, pod_name):
         return status_failure("podDeletionFailed")
 
     return status_success()
 
 
-def create_pod(client, node,  namespace, name):
+def create_pod(logger, client, node,  namespace, name):
     manifest = {
         "apiVersion": "v1",
         "kind": "Pod",
@@ -74,28 +74,31 @@ def create_pod(client, node,  namespace, name):
             body=manifest
         )
         return True
-    except Exception:
+    except Exception as e:
+        logger.exception(e)
         return False
 
 
-def get_pod_status(client, namespace, name):
+def get_pod_status(logger, client, namespace, name):
     try:
         return client.read_namespaced_pod_status(
             namespace=namespace,
             name=name
         )
-    except Exception:
+    except Exception as e:
+        logger.exception(e)
         return False
 
 
-def delete_pod(client, namespace, name):
+def delete_pod(logger, client, namespace, name):
     try:
         client.delete_namespaced_pod(
             namespace=namespace,
             name=name
         )
         return True
-    except Exception:
+    except Exception as e:
+        logger.exception(e)
         return False
 
 
