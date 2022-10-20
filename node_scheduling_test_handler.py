@@ -31,7 +31,10 @@ def test_node_scheduling(logger, name, **_):
     # the deletion probably failed and something is wrong
     # with the node
     if pod_exists(logger, k8s, pod_namespace, pod_name):
-        return status_failure("podAlreadyExists")
+        if not delete_pod(logger, k8s, pod_namespace, pod_name):
+            return status_failure("podDeletionFailed")
+        else:
+            return status_failure("podAlreadyExists")
 
     if not create_pod(logger, k8s, name, pod_namespace, pod_name):
         return status_failure("podCreationFailed")
@@ -39,11 +42,10 @@ def test_node_scheduling(logger, name, **_):
     time.sleep(POD_CREATION_TIMEOUT)
 
     if not pod_succeeded(logger, k8s, pod_namespace, pod_name):
-        return status_failure("podDidntSucceed")
-
-    # If the pod deletion fails, something is probably wrong.
-    if not delete_pod(logger, k8s, pod_namespace, pod_name):
-        return status_failure("podDeletionFailed")
+        if not delete_pod(logger, k8s, pod_namespace, pod_name):
+            return status_failure("podDeletionFailed")
+        else:
+            return status_failure("podDidntSucceed")
 
     return status_success()
 
