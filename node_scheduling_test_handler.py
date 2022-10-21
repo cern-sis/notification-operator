@@ -36,7 +36,7 @@ def test_node_scheduling(logger, name, **_):
     if pod_succeeded(logger, k8s, pod_namespace, pod_name):
         return status_success()
 
-    return status_failed()
+    return status_failure()
 
 
 def create_pod(logger, client, node,  namespace, name):
