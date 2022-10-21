@@ -2,6 +2,7 @@ import datetime
 import logging
 import kopf
 import kubernetes
+from  kubernetes.client.exceptions import ApiException
 import os
 import time
 
@@ -28,10 +29,17 @@ def test_node_scheduling(logger, name, **_):
     pod_namespace = "notification-operator"
     pod_name = f"node-scheduling-test-{name}"
 
-    k8s.delete_namespaced_pod(
+    try:
+        k8s.delete_namespaced_pod(
         namespace=pod_namespace,
         name=pod_name
-    )
+        )
+        return True
+    except ApiException as e:
+        if e.status == 404:
+            return False
+        else:
+            raise
 
     time.sleep(POD_DELETION_TIMEOUT)
 
