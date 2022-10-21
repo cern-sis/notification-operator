@@ -70,17 +70,6 @@ def create_pod(logger, client, node,  namespace, name):
         return False
 
 
-def get_pod_status(logger, client, namespace, name):
-    try:
-        return client.read_namespaced_pod_status(
-            namespace=namespace,
-            name=name
-        )
-    except Exception as e:
-        logger.exception(e)
-        return False
-
-
 def delete_pod(logger, client, namespace, name):
     try:
         client.delete_namespaced_pod(
@@ -93,9 +82,19 @@ def delete_pod(logger, client, namespace, name):
         return False
 
 
-def pod_succeeded(*args):
-    status = get_pod_status(*args)
-    return status.phase == "Succeeded"
+def pod_succeeded(logger, client, namespace, name):
+    try:
+        status = client.read_namespaced_pod_status(
+            namespace=namespace,
+            name=name
+        )
+        if hasattr(status, "phase"):
+            return status.phase == "Succeeded"
+        
+        return False
+    except Exception as e:
+        logger.exception(e)
+        return False
 
 
 def iso_utc_now():
