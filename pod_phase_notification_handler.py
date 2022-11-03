@@ -1,0 +1,58 @@
+import logging
+import os
+
+import kopf
+import zulip
+
+client = zulip.Client()
+
+
+def _prepare_container_status_message(container_status_info):
+    container_status = set(container_status_info.keys()).pop()
+    container_status_reason = container_status_info[container_status].get("reason")
+    container_status_message = container_status_info[container_status].get("message")
+    if all([container_status, container_status_reason, container_status_message]):
+        container_status_msg_content = f"**Container status info**:\n* status: *{container_status}*\n\n* reason: *{container_status_reason}*\n\n* message: *{container_status_message}*"
+        return container_status_msg_content
+
+
+def _prepare_message_for_pod(container_status_info, pod_phase, **kwargs):
+    namespace = kwargs["body"]["metadata"]["namespace"]
+    if namespace not in os.environ.get("ACCEPTED_NAMESPACES", "").split(","):
+        return
+    resource_name = kwargs["body"]["metadata"]["name"]
+
+    zulip_msg_content = f":double_exclamation: Detected suspicious state transition for pod **{resource_name}**\n\nPod phase: **{pod_phase}**\n\n"
+    container_status_msg_content = _prepare_container_status_message(
+        container_status_info
+    )
+    if container_status_msg_content:
+        zulip_msg_content += container_status_msg_content
+
+    zulip_request_payload = {
+        "type": "stream",
+        "to": namespace.split("-")[0],
+        "topic": namespace,
+        "content": zulip_msg_content,
+    }
+    client.send_message(zulip_request_payload)
+
+
+@kopf.on.startup()
+def configure(settings: kopf.OperatorSettings, **_):
+    settings.posting.level = logging.ERROR
+
+
+@kopf.on.field("v1", "pod", field="status")
+def pod_phase_notification_handler(old, new, status, **kwargs):
+    pod_always_pending_condition = (
+        new["phase"] == "Pending" and old["phase"] == new["phase"]
+    )
+    if (
+        old
+        and new["phase"] in ["Pending", "Failed", "Unknown"]
+        and (old["phase"] != new["phase"] or pod_always_pending_condition)
+    ):
+        container_status_info = new["containerStatuses"][0]["state"]
+        pod_phase = new["phase"]
+        _prepare_message_for_pod(container_status_info, pod_phase, **kwargs)
