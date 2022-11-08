@@ -7,6 +7,9 @@ import zulip
 client = zulip.Client()
 
 
+DANGEROUS_POD_STATUSES = ["Pending", "Failed", "Unknown"]
+
+
 def _prepare_container_status_message(container_status_info):
     container_status = set(container_status_info.keys()).pop()
     container_status_reason = container_status_info[container_status].get("reason")
@@ -40,19 +43,17 @@ def _prepare_message_for_pod(container_status_info, pod_phase, **kwargs):
 
 @kopf.on.startup()
 def configure(settings: kopf.OperatorSettings, **_):
-    settings.posting.level = logging.ERROR
+    settings.posting.enabled = False
 
 
 @kopf.on.field("v1", "pod", field="status")
 def pod_phase_notification_handler(old, new, status, **kwargs):
+    if not old:
+        return
     pod_always_pending_condition = (
         new["phase"] == "Pending" and old["phase"] == new["phase"]
     )
-    if (
-        old
-        and new["phase"] in ["Pending", "Failed", "Unknown"]
-        and (old["phase"] != new["phase"] or pod_always_pending_condition)
-    ):
+    if new["phase"] in DANGEROUS_POD_STATUSES and (old["phase"] != new["phase"] or pod_always_pending_condition):
         container_status_info = new["containerStatuses"][0]["state"]
         pod_phase = new["phase"]
         _prepare_message_for_pod(container_status_info, pod_phase, **kwargs)
