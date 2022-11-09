@@ -29,8 +29,10 @@ def _prepare_message_for_pod(container_status_info, pod_phase, **kwargs):
     container_status_msg_content = _prepare_container_status_message(
         container_status_info
     )
-    if container_status_msg_content:
-        zulip_msg_content += container_status_msg_content
+    if not container_status_msg_content:
+        return
+
+    zulip_msg_content += container_status_msg_content
 
     zulip_request_payload = {
         "type": "stream",
