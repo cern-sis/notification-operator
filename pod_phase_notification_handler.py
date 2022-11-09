@@ -52,8 +52,10 @@ def configure(settings: kopf.OperatorSettings, **_):
 def pod_phase_notification_handler(old, new, status, **kwargs):
     if not old:
         return
-
-    if new["phase"] in DANGEROUS_POD_STATUSES and old["phase"] != new["phase"]:
+    pod_always_pending_condition = (
+        new["phase"] == "Pending" and old["phase"] == new["phase"]
+    )
+    if new["phase"] in DANGEROUS_POD_STATUSES and (old["phase"] != new["phase"] or pod_always_pending_condition):
         container_status_info = new["containerStatuses"][0]["state"]
         pod_phase = new["phase"]
         _prepare_message_for_pod(container_status_info, pod_phase, **kwargs)
