@@ -4,33 +4,29 @@ import os
 import kopf
 import zulip
 
+
 client = zulip.Client()
 
 
-DANGEROUS_POD_STATUSES = ["Pending", "Failed", "Unknown"]
+def _prepare_container_state_message(container_state):
+    state = set(container_state.keys()).pop()
+    state_data = container_state[state]
+    reason = state_data['reason']
+    message = state_data['message']
+    container_status_msg_content = f"**Container state:\n* state: *{state}*\n\n* message: *{message}*\n\n* reason: *{reason}*"
+    return container_status_msg_content
 
 
-def _prepare_container_status_message(container_status_info):
-    container_status = set(container_status_info.keys()).pop()
-    container_status_reason = container_status_info[container_status].get("reason")
-    container_status_message = container_status_info[container_status].get("message")
-    if all([container_status, container_status_reason, container_status_message]):
-        container_status_msg_content = f"**Container status info**:\n* status: *{container_status}*\n\n* reason: *{container_status_reason}*\n\n* message: *{container_status_message}*"
-        return container_status_msg_content
-
-
-def _prepare_message_for_pod(container_status_info, pod_phase, **kwargs):
+def _prepare_message_for_pod(container_state, pod_phase, **kwargs):
     namespace = kwargs["body"]["metadata"]["namespace"]
     if namespace not in os.environ.get("ACCEPTED_NAMESPACES", "").split(","):
         return
     resource_name = kwargs["body"]["metadata"]["name"]
 
-    zulip_msg_content = f":double_exclamation: Detected suspicious state transition for pod **{resource_name}**\n\nPod phase: **{pod_phase}**\n\n"
-    container_status_msg_content = _prepare_container_status_message(
-        container_status_info
+    zulip_msg_content = f":double_exclamation: Detected dangerous container state for pod **{resource_name}**\n\nPod phase: **{pod_phase}**\n\n"
+    container_status_msg_content = _prepare_container_state_message(
+        container_state
     )
-    if not container_status_msg_content:
-        return
 
     zulip_msg_content += container_status_msg_content
 
@@ -52,10 +48,11 @@ def configure(settings: kopf.OperatorSettings, **_):
 def pod_phase_notification_handler(old, new, status, **kwargs):
     if not old:
         return
-    pod_always_pending_condition = (
-        new["phase"] == "Pending" and old["phase"] == new["phase"]
-    )
-    if new["phase"] in DANGEROUS_POD_STATUSES and (old["phase"] != new["phase"] or pod_always_pending_condition):
-        container_status_info = new["containerStatuses"][0]["state"]
-        pod_phase = new["phase"]
-        _prepare_message_for_pod(container_status_info, pod_phase, **kwargs)
+    # check container state
+    new_container_state= new["containerStatuses"][0]["state"]
+    old_container_state= old["containerStatuses"][0]["state"]
+    if new_container_state == old_container_state:
+        return
+    new_phase = new['phase']
+    if 'waiting' in new_container_state or 'terminated' in new_container_state:
+        _prepare_message_for_pod(new_container_state, new_phase, **kwargs)
