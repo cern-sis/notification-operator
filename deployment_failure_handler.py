@@ -15,7 +15,11 @@ def _prepare_message_for_deployment(replicas_unavailable, deployment, **kwargs):
     if namespace not in os.environ.get("ACCEPTED_NAMESPACES", "").split(","):
         return
     deployment_name = deployment.metadata.name
-    zulip_msg_content = f":double_exclamation: Detected deployment **{deployment_name}** is failing.\n\n{replicas_unavailable} replica(s) is/are unavailable"  # noqa
+    zulip_msg_content = f"""
+                        :double_exclamation: Detected deployment
+                        **{deployment_name}** is failing.\n
+                        \n{replicas_unavailable} replica(s) is/are unavailable
+                        """
     zulip_request_payload = {
         "type": "stream",
         "to": namespace.split("-")[0],
