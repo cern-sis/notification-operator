@@ -30,14 +30,12 @@ def _prepare_message_for_deployment(replicas_unavailable, deployment, **kwargs):
 def configure(settings: kopf.OperatorSettings, **_):
     settings.posting.enabled = False
 
-# get the deployment object
-# get max unavailable and use it to see if the deployment is actually failing => old-new+max_unav should be more than 0
 @kopf.on.field("apps", "v1", "deployments", field="status.replicas")
 def pod_phase_notification_handler(old, new, body, **kwargs):
     if not old:
         return
     deployment = v1.read_namespaced_deployment(name=body['metadata']['name'], namespace=body['metadata']['namespace'])
     max_unavailable = deployment.spec.strategy.rolling_update.max_unavailable
-    replicas_unavailable = (old-new)+max_unavailable
-    if replicas_unavailable > 0:
+    replicas_unavailable = (old-new)
+    if replicas_unavailable > max_unavailable:
         _prepare_message_for_deployment(replicas_unavailable, deployment, **kwargs)
