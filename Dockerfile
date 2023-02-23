@@ -5,10 +5,11 @@ WORKDIR /src
 ENV PATH="/root/.poetry/bin:${PATH}"
 
 ARG POETRY_VERSION
-ENV POETRY_VERSION="${POETRY_VERSION:-1.1.6}"
-RUN curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py \
-  | python - --version "${POETRY_VERSION}" \
- && poetry --version
+ENV POETRY_VERSION="${POETRY_VERSION:-1.3.2}"
+RUN curl -sSL https://install.python-poetry.org/ \
+    | python3 - --version "${POETRY_VERSION}"
+
+ENV PATH="${PATH}:/root/.local/bin"
 
 
 COPY poetry.lock pyproject.toml ./
