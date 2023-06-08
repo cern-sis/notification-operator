@@ -23,6 +23,7 @@ def _prepare_message_for_deployment(replicas_unavailable, deployment, **kwargs):
     deployment_name = deployment.metadata.name
     # update the state
     if deployment_name in deployment_state:
+        print("not the first time it fails - update the state and return")
         deployment_state[deployment_name]["last_alert_time"] = time.time()
         deployment_state[deployment_name]["alert_count"] += 1
         return
@@ -39,6 +40,7 @@ def _prepare_message_for_deployment(replicas_unavailable, deployment, **kwargs):
                         **{deployment_name}** is failing.\n
                         \n{replicas_unavailable} replica(s) is/are unavailable
                         """
+    print("sending new message to zulip...")
     zulip_request_payload = {
         "type": "stream",
         "to": namespace.split("-")[0],
@@ -64,6 +66,7 @@ def send_resolve_message(deployment, **kwargs):
         "topic": namespace,
         "content": zulip_msg_content,
     }
+    print("sending resolve message to zulip")
     client.send_message(zulip_request_payload)
     global stop_sending
     stop_sending = True
@@ -78,6 +81,7 @@ def configure(settings: kopf.OperatorSettings, **_):
 @kopf.on.field("apps", "v1", "deployments", field="status.replicas")
 def pod_phase_notification_handler(old, new, body, **kwargs):
     if not old:
+        print("not old")
         return
     deployment = v1.read_namespaced_deployment(
         name=body["metadata"]["name"], namespace=body["metadata"]["namespace"]
@@ -86,10 +90,12 @@ def pod_phase_notification_handler(old, new, body, **kwargs):
     replicas_unavailable = old - new
     # send alert if deployment is failing
     if replicas_unavailable > max_unavailable:
+        print("deployment is failing")
         _prepare_message_for_deployment(replicas_unavailable, deployment, **kwargs)
 
     # send notification about the resolved issue
     else:
+        print("issue is resolved")
         deployment_name = deployment.metadata.name
         if deployment_name in deployment_state:
             deployment_state[deployment_name]["resolved"] = True
@@ -116,6 +122,7 @@ def generate_table_content():
 
 
 def send_table_periodically():
+    print("thread spawned for sending the tabular summary periodically")
     while not stop_sending:
         table_content = generate_table_content()
 
