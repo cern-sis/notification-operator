@@ -88,6 +88,10 @@ def pod_phase_notification_handler(old, new, body, **kwargs):
     )
     max_unavailable = deployment.spec.strategy.rolling_update.max_unavailable
     replicas_unavailable = old - new
+    print(type(max_unavailable))
+    print(max_unavailable)
+    print(type(replicas_unavailable))
+    print(replicas_unavailable)
     # send alert if deployment is failing
     if replicas_unavailable > max_unavailable:
         print("deployment is failing")
