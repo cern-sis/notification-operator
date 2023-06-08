@@ -28,3 +28,13 @@ jobs:
           context: .
           push: true
           tags: inspirehep/notification-operator:${{ github.sha }}
+
+  deploy:
+    needs: [push_to_registries]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch event
+        uses: cern-sis/gh-workflows/.github/actions/kubernetes-project-update@v4.0.0
+        with:
+          token: ${{ secrets.PAT_FIRE_EVENTS_ON_CERN_SIS_KUBERNETES }}
+          images: "inspirehep/notification-operator:${{ github.sha }}"
