@@ -80,6 +80,8 @@ def configure(settings: kopf.OperatorSettings, **_):
 # send notification if the deployment is failing
 @kopf.on.field("apps", "v1", "deployments", field="status.replicas")
 def pod_phase_notification_handler(old, new, body, **kwargs):
+    print("Old: ")
+    print(old)
     if not old:
         print("not old")
         return
