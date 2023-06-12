@@ -1,7 +1,7 @@
 import os
 import threading
 import time
-
+import logging
 import kopf
 import zulip
 from kubernetes import client, config
@@ -74,7 +74,7 @@ def send_resolve_message(deployment, **kwargs):
 
 @kopf.on.startup()
 def configure(settings: kopf.OperatorSettings, **_):
-    settings.posting.enabled = False
+    settings.posting.enabled = logging.DEBUG
 
 
 # send notification if the deployment is failing
