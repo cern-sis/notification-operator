@@ -1,7 +1,9 @@
+import logging
+import math
 import os
 import threading
 import time
-import logging
+
 import kopf
 import zulip
 from kubernetes import client, config
@@ -89,9 +91,13 @@ def pod_phase_notification_handler(old, new, body, **kwargs):
         name=body["metadata"]["name"], namespace=body["metadata"]["namespace"]
     )
     max_unavailable = deployment.spec.strategy.rolling_update.max_unavailable
+    replica_count = deployment.spec.replicas
+    if isinstance(max_unavailable, str) and max_unavailable.endswith("%"):
+        max_unavailable_percent = int(max_unavailable.rstrip("%"))
+        max_unavailable = math.ceil(replica_count * max_unavailable_percent / 100)
     replicas_unavailable = old - new
     print(type(max_unavailable))
-    print(max_unavailable)
+    print(max_unavailable)  # this is string for some reason
     print(type(replicas_unavailable))
     print(replicas_unavailable)
     # send alert if deployment is failing
